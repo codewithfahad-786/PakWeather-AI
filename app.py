@@ -1,3 +1,4 @@
+```python
 # ============================================================
 # 🇵🇰 PakWeather AI
 # Professional Pakistan Weather Forecast Dashboard
@@ -8,7 +9,6 @@ import requests
 import pandas as pd
 import streamlit as st
 import plotly.graph_objects as go
-
 from datetime import date, timedelta
 
 
@@ -25,7 +25,7 @@ st.set_page_config(
 
 
 # ============================================================
-# BACKEND URL
+# BACKEND CONFIGURATION
 # ============================================================
 
 BACKEND_URL = "https://pakweather-ai-production.up.railway.app"
@@ -52,10 +52,10 @@ st.markdown(
     }
 
     .city-card {
-        padding: 20px;
-        border-radius: 15px;
+        padding: 15px;
+        border-radius: 12px;
         border: 1px solid rgba(128,128,128,0.25);
-        margin-bottom: 15px;
+        margin-bottom: 10px;
     }
 
     </style>
@@ -74,75 +74,48 @@ st.markdown(
 )
 
 st.markdown(
-    '<div class="subtitle">AI-powered Pakistan weather forecasting dashboard</div>',
+    '<div class="subtitle">'
+    'AI-powered Pakistan weather forecasting dashboard'
+    '</div>',
     unsafe_allow_html=True
 )
 
 
 # ============================================================
-# WEATHER DESCRIPTION
+# HELPER FUNCTIONS
 # ============================================================
 
 def weather_description(code):
 
     descriptions = {
-
         0: ("☀️", "Clear sky"),
-
         1: ("🌤️", "Mainly clear"),
-
         2: ("⛅", "Partly cloudy"),
-
         3: ("☁️", "Overcast"),
-
         45: ("🌫️", "Fog"),
-
         48: ("🌫️", "Rime fog"),
-
         51: ("🌦️", "Light drizzle"),
-
         53: ("🌦️", "Moderate drizzle"),
-
         55: ("🌧️", "Dense drizzle"),
-
-        56: ("🌦️", "Freezing drizzle"),
-
-        57: ("🌧️", "Heavy freezing drizzle"),
-
+        56: ("🌧️", "Light freezing drizzle"),
+        57: ("🌧️", "Dense freezing drizzle"),
         61: ("🌦️", "Slight rain"),
-
         63: ("🌧️", "Moderate rain"),
-
         65: ("🌧️", "Heavy rain"),
-
-        66: ("🌧️", "Freezing rain"),
-
+        66: ("🌧️", "Light freezing rain"),
         67: ("🌧️", "Heavy freezing rain"),
-
-        71: ("🌨️", "Slight snowfall"),
-
-        73: ("🌨️", "Moderate snowfall"),
-
-        75: ("❄️", "Heavy snowfall"),
-
-        77: ("❄️", "Snow grains"),
-
+        71: ("🌨️", "Slight snow"),
+        73: ("🌨️", "Moderate snow"),
+        75: ("❄️", "Heavy snow"),
+        77: ("🌨️", "Snow grains"),
         80: ("🌦️", "Slight rain showers"),
-
         81: ("🌧️", "Moderate rain showers"),
-
         82: ("⛈️", "Violent rain showers"),
-
         85: ("🌨️", "Slight snow showers"),
-
-        86: ("🌨️", "Heavy snow showers"),
-
+        86: ("❄️", "Heavy snow showers"),
         95: ("⛈️", "Thunderstorm"),
-
         96: ("⛈️", "Thunderstorm with hail"),
-
         99: ("⛈️", "Thunderstorm with heavy hail")
-
     }
 
     try:
@@ -154,11 +127,22 @@ def weather_description(code):
         return ("🌡️", "Weather information")
 
 
+def safe_number(value, decimals=1, suffix=""):
+
+    if value is None:
+        return "N/A"
+
+    try:
+        return f"{float(value):.{decimals}f}{suffix}"
+    except:
+        return "N/A"
+
+
 # ============================================================
-# API FUNCTIONS
+# BACKEND API FUNCTIONS
 # ============================================================
 
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def search_cities(query):
 
     url = f"{BACKEND_URL}/cities"
@@ -178,11 +162,7 @@ def search_cities(query):
     return response.json()
 
 
-# ============================================================
-# GET SINGLE DATE FORECAST
-# ============================================================
-
-@st.cache_data(ttl=600)
+@st.cache_data(ttl=300)
 def get_forecast(
     latitude,
     longitude,
@@ -192,13 +172,9 @@ def get_forecast(
     url = f"{BACKEND_URL}/forecast"
 
     params = {
-
         "latitude": latitude,
-
         "longitude": longitude,
-
         "forecast_date": str(forecast_date)
-
     }
 
     response = requests.get(
@@ -212,12 +188,8 @@ def get_forecast(
     return response.json()
 
 
-# ============================================================
-# GET 16 DAY FORECAST
-# ============================================================
-
-@st.cache_data(ttl=600)
-def get_16_day_forecast(
+@st.cache_data(ttl=300)
+def get_16_day_weather(
     latitude,
     longitude
 ):
@@ -225,11 +197,8 @@ def get_16_day_forecast(
     url = f"{BACKEND_URL}/weather"
 
     params = {
-
         "latitude": latitude,
-
         "longitude": longitude
-
     }
 
     response = requests.get(
@@ -251,30 +220,7 @@ with st.sidebar:
 
     st.header("⚙️ PakWeather AI")
 
-    try:
-
-        health = requests.get(
-            f"{BACKEND_URL}/health",
-            timeout=10
-        )
-
-        if health.status_code == 200:
-
-            st.success(
-                "🟢 Forecast Service Online"
-            )
-
-        else:
-
-            st.warning(
-                "🟡 Backend response issue"
-            )
-
-    except:
-
-        st.error(
-            "🔴 Backend Offline"
-        )
+    st.success("🟢 Backend Online")
 
     st.divider()
 
@@ -282,9 +228,7 @@ with st.sidebar:
         """
         **Features**
 
-        🔎 Smart City Search
-
-        🇵🇰 Pakistani Cities
+        🔎 Smart Pakistan City Search
 
         📅 16-Day Forecast
 
@@ -296,22 +240,26 @@ with st.sidebar:
 
         💨 Wind Forecast
 
-        🧭 Wind Direction
-
         📈 Interactive Charts
 
         🗺️ Location Map
+
+        🌅 Sunrise & Sunset
         """
     )
 
     st.divider()
 
     st.caption(
-        "Weather data by Open-Meteo"
+        "Frontend: Streamlit"
     )
 
     st.caption(
         "Backend: FastAPI + Railway"
+    )
+
+    st.caption(
+        "Weather Data: Open-Meteo"
     )
 
 
@@ -326,849 +274,691 @@ st.write(
 )
 
 city_query = st.text_input(
-    "Search City",
-    placeholder="e.g. Multan, Lahore, Karachi, Islamabad...",
+    "City Search",
+    placeholder="e.g. Multan, Karachi, Lahore, Islamabad...",
     label_visibility="collapsed"
 )
 
 
 # ============================================================
-# CITY SEARCH
+# CITY SEARCH RESULTS
 # ============================================================
 
 if city_query.strip():
 
-    if len(city_query.strip()) < 2:
+    if len(city_query.strip()) < 1:
 
         st.info(
-            "⌨️ Type at least 2 letters."
+            "⌨️ Type a city name."
         )
 
-        st.stop()
+    else:
 
-    try:
+        try:
 
-        with st.spinner(
-            "🔎 Searching Pakistani cities..."
-        ):
+            with st.spinner(
+                "🔎 Searching Pakistani cities..."
+            ):
 
-            city_data = search_cities(
-                city_query.strip()
+                city_response = search_cities(
+                    city_query.strip()
+                )
+
+            cities = city_response.get(
+                "cities",
+                []
             )
 
-        locations = city_data.get(
-            "cities",
-            []
-        )
+            if not cities:
 
-    except requests.exceptions.RequestException as e:
+                st.warning(
+                    "⚠️ No Pakistani city found. "
+                    "Try another spelling."
+                )
 
-        st.error(
-            f"❌ City search failed: {e}"
-        )
+                st.stop()
 
-        st.stop()
-
-    except Exception as e:
-
-        st.error(
-            f"❌ Unexpected error: {e}"
-        )
-
-        st.stop()
-
-
-    # ========================================================
-    # CITY SUGGESTIONS
-    # ========================================================
-
-    if not locations:
-
-        st.warning(
-            "⚠️ No Pakistani city found. Try another name."
-        )
-
-        st.stop()
-
-
-    st.subheader(
-        "📍 Matching Pakistani Cities"
-    )
-
-
-    city_labels = []
-
-
-    for city in locations:
-
-        name = city.get(
-            "name",
-            "Unknown"
-        )
-
-        province = city.get(
-            "province",
-            ""
-        )
-
-        label = name
-
-        if province:
-
-            label += f", {province}"
-
-        label += ", Pakistan"
-
-        city_labels.append(label)
-
-
-    selected_index = st.selectbox(
-
-        "Select City",
-
-        range(len(city_labels)),
-
-        format_func=lambda i:
-            f"📍 {city_labels[i]}"
-
-    )
-
-
-    selected_city = locations[
-        selected_index
-    ]
-
-
-    # ========================================================
-    # CITY INFORMATION
-    # ========================================================
-
-    city_name = selected_city.get(
-        "name",
-        "Unknown"
-    )
-
-    province = selected_city.get(
-        "province",
-        ""
-    )
-
-    latitude = float(
-        selected_city.get(
-            "latitude",
-            0
-        )
-    )
-
-    longitude = float(
-        selected_city.get(
-            "longitude",
-            0
-        )
-    )
-
-    elevation = selected_city.get(
-        "elevation"
-    )
-
-
-    st.success(
-        f"📍 **{city_name}, {province}, Pakistan**"
-    )
-
-
-    # ========================================================
-    # LOCATION DETAILS
-    # ========================================================
-
-    col1, col2, col3 = st.columns(3)
-
-
-    with col1:
-
-        st.metric(
-            "Latitude",
-            f"{latitude:.4f}°"
-        )
-
-
-    with col2:
-
-        st.metric(
-            "Longitude",
-            f"{longitude:.4f}°"
-        )
-
-
-    with col3:
-
-        if elevation is not None:
-
-            st.metric(
-                "Elevation",
-                f"{float(elevation):.0f} m"
+            st.subheader(
+                "📍 Matching Pakistani Cities"
             )
 
-        else:
+            # ------------------------------------------------
+            # CITY SELECTOR
+            # ------------------------------------------------
 
-            st.metric(
-                "Elevation",
-                "N/A"
+            city_labels = []
+
+            for city in cities:
+
+                name = city.get(
+                    "name",
+                    "Unknown"
+                )
+
+                province = city.get(
+                    "province",
+                    ""
+                )
+
+                if province:
+
+                    label = (
+                        f"📍 {name}, "
+                        f"{province}, Pakistan"
+                    )
+
+                else:
+
+                    label = (
+                        f"📍 {name}, Pakistan"
+                    )
+
+                city_labels.append(label)
+
+            selected_index = st.selectbox(
+                "Select City",
+                options=range(len(city_labels)),
+                format_func=lambda i: city_labels[i],
+                key="selected_city"
             )
 
+            selected_city = cities[
+                selected_index
+            ]
 
-    # ========================================================
-    # MAP
-    # ========================================================
+            # ------------------------------------------------
+            # CITY DATA
+            # ------------------------------------------------
 
-    st.subheader(
-        "🗺️ City Location"
-    )
-
-
-    map_data = pd.DataFrame({
-
-        "lat": [latitude],
-
-        "lon": [longitude]
-
-    })
-
-
-    st.map(
-        map_data,
-        latitude="lat",
-        longitude="lon",
-        zoom=8
-    )
-
-
-    # ========================================================
-    # DATE SELECTOR
-    # ========================================================
-
-    st.divider()
-
-    st.header(
-        "📅 Select Forecast Date"
-    )
-
-
-    today = date.today()
-
-    maximum_date = (
-        today + timedelta(days=15)
-    )
-
-
-    selected_date = st.date_input(
-
-        "Forecast date",
-
-        value=today,
-
-        min_value=today,
-
-        max_value=maximum_date
-
-    )
-
-
-    # ========================================================
-    # LOAD FORECAST
-    # ========================================================
-
-    try:
-
-        with st.spinner(
-            "🌦️ Loading weather forecast..."
-        ):
-
-            forecast = get_forecast(
-
-                latitude,
-
-                longitude,
-
-                selected_date
-
+            city_name = selected_city.get(
+                "name",
+                "Unknown"
             )
 
-
-    except requests.exceptions.HTTPError as e:
-
-        st.error(
-            f"❌ Forecast service error.\n\n{e}"
-        )
-
-        st.stop()
-
-
-    except requests.exceptions.RequestException as e:
-
-        st.error(
-            f"❌ Could not connect to backend.\n\n{e}"
-        )
-
-        st.stop()
-
-
-    except Exception as e:
-
-        st.error(
-            f"❌ Forecast error.\n\n{e}"
-        )
-
-        st.stop()
-
-
-    # ========================================================
-    # READ FORECAST DATA
-    # ========================================================
-
-    weather_code = forecast.get(
-        "weather_code"
-    )
-
-
-    temperature = forecast.get(
-        "temperature",
-        {}
-    )
-
-
-    temp_min = temperature.get(
-        "minimum"
-    )
-
-
-    temp_avg = temperature.get(
-        "average"
-    )
-
-
-    temp_max = temperature.get(
-        "maximum"
-    )
-
-
-    # ========================================================
-    # FEELS LIKE
-    #
-    # IMPORTANT:
-    # Backend returns:
-    # apparent_temperature_min
-    # apparent_temperature_max
-    # ========================================================
-
-    feels_like_min = forecast.get(
-        "apparent_temperature_min"
-    )
-
-
-    feels_like_max = forecast.get(
-        "apparent_temperature_max"
-    )
-
-
-    precipitation = forecast.get(
-        "precipitation_mm"
-    )
-
-
-    rain = forecast.get(
-        "rain_mm"
-    )
-
-
-    rain_probability = forecast.get(
-        "rain_probability"
-    )
-
-
-    wind_speed = forecast.get(
-        "wind_speed_kmh"
-    )
-
-
-    wind_gust = forecast.get(
-        "wind_gust_kmh"
-    )
-
-
-    wind_direction = forecast.get(
-        "wind_direction"
-    )
-
-
-    # ========================================================
-    # WEATHER DESCRIPTION
-    # ========================================================
-
-    icon, description = weather_description(
-        weather_code
-    )
-
-
-    # ========================================================
-    # WEATHER HEADER
-    # ========================================================
-
-    st.divider()
-
-    st.header(
-        f"{icon} Weather Forecast"
-    )
-
-
-    st.subheader(
-        f"📍 {city_name}, {province}, Pakistan"
-    )
-
-
-    st.write(
-        f"📅 **{selected_date.strftime('%A, %d %B %Y')}**"
-    )
-
-
-    # ========================================================
-    # MAIN WEATHER CARDS
-    # ========================================================
-
-    c1, c2, c3, c4 = st.columns(4)
-
-
-    with c1:
-
-        if temp_avg is not None:
-
-            st.metric(
-                "🌡️ Average",
-                f"{float(temp_avg):.1f} °C"
+            province = selected_city.get(
+                "province",
+                ""
             )
 
-        else:
-
-            st.metric(
-                "🌡️ Average",
-                "N/A"
+            latitude = float(
+                selected_city.get(
+                    "latitude",
+                    0
+                )
             )
 
-
-    with c2:
-
-        if temp_max is not None:
-
-            st.metric(
-                "🔺 Maximum",
-                f"{float(temp_max):.1f} °C"
+            longitude = float(
+                selected_city.get(
+                    "longitude",
+                    0
+                )
             )
 
-        else:
-
-            st.metric(
-                "🔺 Maximum",
-                "N/A"
+            elevation = selected_city.get(
+                "elevation"
             )
 
-
-    with c3:
-
-        if temp_min is not None:
-
-            st.metric(
-                "🔻 Minimum",
-                f"{float(temp_min):.1f} °C"
+            timezone = selected_city.get(
+                "timezone",
+                "auto"
             )
 
-        else:
+            # ------------------------------------------------
+            # CITY INFORMATION
+            # ------------------------------------------------
 
-            st.metric(
-                "🔻 Minimum",
-                "N/A"
+            st.success(
+                f"📍 **{city_name}, "
+                f"{province}, Pakistan**"
             )
 
+            c1, c2, c3 = st.columns(3)
 
-    with c4:
-
-        if rain_probability is not None:
-
-            st.metric(
-                "🌧️ Rain Chance",
-                f"{float(rain_probability):.0f}%"
+            c1.metric(
+                "Latitude",
+                f"{latitude:.4f}°"
             )
 
-        else:
-
-            st.metric(
-                "🌧️ Rain Chance",
-                "N/A"
+            c2.metric(
+                "Longitude",
+                f"{longitude:.4f}°"
             )
 
+            if elevation is not None:
 
-    st.success(
-        f"{icon} **{description}**"
-    )
+                c3.metric(
+                    "Elevation",
+                    f"{float(elevation):.0f} m"
+                )
 
+            else:
 
-    # ========================================================
-    # FEELS LIKE
-    # ========================================================
+                c3.metric(
+                    "Elevation",
+                    "N/A"
+                )
 
-    st.header(
-        "🌡️ Feels Like"
-    )
+            # ------------------------------------------------
+            # MAP
+            # ------------------------------------------------
 
-
-    f1, f2 = st.columns(2)
-
-
-    with f1:
-
-        if feels_like_min is not None:
-
-            st.metric(
-                "Minimum Feels Like",
-                f"{float(feels_like_min):.1f} °C"
+            st.subheader(
+                "🗺️ City Location"
             )
 
-        else:
-
-            st.metric(
-                "Minimum Feels Like",
-                "N/A"
+            map_data = pd.DataFrame(
+                {
+                    "lat": [latitude],
+                    "lon": [longitude]
+                }
             )
 
-
-    with f2:
-
-        if feels_like_max is not None:
-
-            st.metric(
-                "Maximum Feels Like",
-                f"{float(feels_like_max):.1f} °C"
+            st.map(
+                map_data,
+                latitude="lat",
+                longitude="lon",
+                zoom=9
             )
 
-        else:
+            # =================================================
+            # DATE SELECTION
+            # =================================================
 
-            st.metric(
-                "Maximum Feels Like",
-                "N/A"
+            st.divider()
+
+            st.header(
+                "📅 Select Forecast Date"
             )
 
+            today = date.today()
 
-    # ========================================================
-    # RAIN & WIND
-    # ========================================================
-
-    st.header(
-        "🌧️ Rain & Wind"
-    )
-
-
-    r1, r2, r3 = st.columns(3)
-
-
-    with r1:
-
-        if precipitation is not None:
-
-            st.metric(
-                "Precipitation",
-                f"{float(precipitation):.1f} mm"
+            selected_date = st.date_input(
+                "Forecast date",
+                value=today,
+                min_value=today,
+                max_value=today + timedelta(days=15)
             )
 
-        else:
+            # =================================================
+            # SELECTED DATE FORECAST
+            # =================================================
 
-            st.metric(
-                "Precipitation",
-                "N/A"
+            try:
+
+                with st.spinner(
+                    "🌦️ Loading weather forecast..."
+                ):
+
+                    forecast_data = get_forecast(
+                        latitude,
+                        longitude,
+                        selected_date
+                    )
+
+                # ------------------------------------------------
+                # BASIC DATA
+                # ------------------------------------------------
+
+                temperature = forecast_data.get(
+                    "temperature",
+                    {}
+                )
+
+                apparent = forecast_data.get(
+                    "apparent_temperature",
+                    {}
+                )
+
+                temp_min = temperature.get(
+                    "minimum"
+                )
+
+                temp_avg = temperature.get(
+                    "average"
+                )
+
+                temp_max = temperature.get(
+                    "maximum"
+                )
+
+                feels_min = apparent.get(
+                    "minimum"
+                )
+
+                feels_max = apparent.get(
+                    "maximum"
+                )
+
+                weather_code = forecast_data.get(
+                    "weather_code"
+                )
+
+                precipitation = forecast_data.get(
+                    "precipitation_mm",
+                    0
+                )
+
+                rain = forecast_data.get(
+                    "rain_mm",
+                    0
+                )
+
+                rain_probability = forecast_data.get(
+                    "rain_probability",
+                    0
+                )
+
+                wind_speed = forecast_data.get(
+                    "wind_speed_kmh",
+                    0
+                )
+
+                wind_gust = forecast_data.get(
+                    "wind_gust_kmh",
+                    0
+                )
+
+                wind_direction = forecast_data.get(
+                    "wind_direction"
+                )
+
+                sunrise = forecast_data.get(
+                    "sunrise"
+                )
+
+                sunset = forecast_data.get(
+                    "sunset"
+                )
+
+                icon, description = weather_description(
+                    weather_code
+                )
+
+                # =================================================
+                # WEATHER HEADER
+                # =================================================
+
+                st.divider()
+
+                st.header(
+                    f"{icon} Weather Forecast"
+                )
+
+                st.subheader(
+                    f"📍 {city_name}, "
+                    f"{province}, Pakistan"
+                )
+
+                st.write(
+                    f"📅 **{selected_date.strftime('%A, %d %B %Y')}**"
+                )
+
+                # =================================================
+                # TEMPERATURE CARDS
+                # =================================================
+
+                st.markdown("### 🌡️ Temperature")
+
+                c1, c2, c3, c4 = st.columns(4)
+
+                c1.metric(
+                    "🌡️ Average",
+                    safe_number(
+                        temp_avg,
+                        1,
+                        " °C"
+                    )
+                )
+
+                c2.metric(
+                    "🔺 Maximum",
+                    safe_number(
+                        temp_max,
+                        1,
+                        " °C"
+                    )
+                )
+
+                c3.metric(
+                    "🔻 Minimum",
+                    safe_number(
+                        temp_min,
+                        1,
+                        " °C"
+                    )
+                )
+
+                c4.metric(
+                    "🌧️ Rain Chance",
+                    safe_number(
+                        rain_probability,
+                        0,
+                        "%"
+                    )
+                )
+
+                st.success(
+                    f"{icon} **{description}**"
+                )
+
+                # =================================================
+                # FEELS LIKE
+                # =================================================
+
+                st.markdown(
+                    "### 🌡️ Feels Like"
+                )
+
+                c1, c2 = st.columns(2)
+
+                c1.metric(
+                    "Minimum Feels Like",
+                    safe_number(
+                        feels_min,
+                        1,
+                        " °C"
+                    )
+                )
+
+                c2.metric(
+                    "Maximum Feels Like",
+                    safe_number(
+                        feels_max,
+                        1,
+                        " °C"
+                    )
+                )
+
+                # =================================================
+                # RAIN & WIND
+                # =================================================
+
+                st.markdown(
+                    "### 🌧️ Rain & Wind"
+                )
+
+                c1, c2, c3 = st.columns(3)
+
+                c1.metric(
+                    "Precipitation",
+                    safe_number(
+                        precipitation,
+                        1,
+                        " mm"
+                    )
+                )
+
+                c2.metric(
+                    "Rain",
+                    safe_number(
+                        rain,
+                        1,
+                        " mm"
+                    )
+                )
+
+                c3.metric(
+                    "Wind Speed",
+                    safe_number(
+                        wind_speed,
+                        1,
+                        " km/h"
+                    )
+                )
+
+                c1, c2, c3 = st.columns(3)
+
+                c1.metric(
+                    "💨 Maximum Wind Gust",
+                    safe_number(
+                        wind_gust,
+                        1,
+                        " km/h"
+                    )
+                )
+
+                if wind_direction is not None:
+
+                    c2.metric(
+                        "🧭 Wind Direction",
+                        f"{float(wind_direction):.0f}°"
+                    )
+
+                else:
+
+                    c2.metric(
+                        "🧭 Wind Direction",
+                        "N/A"
+                    )
+
+                c3.metric(
+                    "🏔️ Elevation",
+                    safe_number(
+                        elevation,
+                        0,
+                        " m"
+                    )
+                )
+
+                # =================================================
+                # SUN
+                # =================================================
+
+                st.markdown(
+                    "### 🌅 Sun Information"
+                )
+
+                c1, c2 = st.columns(2)
+
+                c1.metric(
+                    "🌅 Sunrise",
+                    sunrise if sunrise else "N/A"
+                )
+
+                c2.metric(
+                    "🌇 Sunset",
+                    sunset if sunset else "N/A"
+                )
+
+                # =================================================
+                # 16 DAY FORECAST
+                # =================================================
+
+                st.divider()
+
+                st.header(
+                    "📈 16-Day Temperature Forecast"
+                )
+
+                try:
+
+                    with st.spinner(
+                        "📊 Loading 16-day forecast..."
+                    ):
+
+                        full_weather = get_16_day_weather(
+                            latitude,
+                            longitude
+                        )
+
+                    daily = full_weather.get(
+                        "daily",
+                        {}
+                    )
+
+                    dates = daily.get(
+                        "time",
+                        []
+                    )
+
+                    max_temps = daily.get(
+                        "temperature_2m_max",
+                        []
+                    )
+
+                    min_temps = daily.get(
+                        "temperature_2m_min",
+                        []
+                    )
+
+                    mean_temps = daily.get(
+                        "temperature_2m_mean",
+                        []
+                    )
+
+                    if dates:
+
+                        fig = go.Figure()
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=dates,
+                                y=max_temps,
+                                mode="lines+markers",
+                                name="Maximum °C"
+                            )
+                        )
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=dates,
+                                y=mean_temps,
+                                mode="lines+markers",
+                                name="Average °C"
+                            )
+                        )
+
+                        fig.add_trace(
+                            go.Scatter(
+                                x=dates,
+                                y=min_temps,
+                                mode="lines+markers",
+                                name="Minimum °C"
+                            )
+                        )
+
+                        fig.update_layout(
+                            height=450,
+                            xaxis_title="Date",
+                            yaxis_title="Temperature (°C)",
+                            hovermode="x unified",
+                            legend_title="Temperature"
+                        )
+
+                        st.plotly_chart(
+                            fig,
+                            use_container_width=True
+                        )
+
+                        # =================================================
+                        # FORECAST TABLE
+                        # =================================================
+
+                        st.subheader(
+                            "📋 Forecast Details"
+                        )
+
+                        forecast_table = pd.DataFrame(
+                            {
+                                "Date": dates,
+                                "Max °C": max_temps,
+                                "Average °C": mean_temps,
+                                "Min °C": min_temps
+                            }
+                        )
+
+                        forecast_table[
+                            "Date"
+                        ] = pd.to_datetime(
+                            forecast_table["Date"]
+                        ).dt.strftime(
+                            "%d %b %Y"
+                        )
+
+                        st.dataframe(
+                            forecast_table,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+                except requests.RequestException as e:
+
+                    st.warning(
+                        f"⚠️ 16-day forecast unavailable: {e}"
+                    )
+
+                except Exception as e:
+
+                    st.warning(
+                        f"⚠️ Chart error: {e}"
+                    )
+
+            except requests.HTTPError as e:
+
+                st.error(
+                    "❌ Forecast service error."
+                )
+
+                st.code(
+                    str(e)
+                )
+
+            except requests.RequestException as e:
+
+                st.error(
+                    "❌ Could not connect to Railway backend."
+                )
+
+                st.code(
+                    str(e)
+                )
+
+            except Exception as e:
+
+                st.error(
+                    "❌ Unexpected forecast error."
+                )
+
+                st.code(
+                    str(e)
+                )
+
+        except requests.HTTPError as e:
+
+            st.error(
+                "❌ City search service error."
             )
 
-
-    with r2:
-
-        if rain is not None:
-
-            st.metric(
-                "Rain",
-                f"{float(rain):.1f} mm"
+            st.code(
+                str(e)
             )
 
-        else:
+        except requests.RequestException as e:
 
-            st.metric(
-                "Rain",
-                "N/A"
+            st.error(
+                "❌ Could not connect to backend."
             )
 
-
-    with r3:
-
-        if wind_speed is not None:
-
-            st.metric(
-                "Wind Speed",
-                f"{float(wind_speed):.1f} km/h"
+            st.code(
+                str(e)
             )
 
-        else:
+        except Exception as e:
 
-            st.metric(
-                "Wind Speed",
-                "N/A"
+            st.error(
+                "❌ Unexpected error."
             )
 
-
-    # ========================================================
-    # WIND DETAILS
-    # ========================================================
-
-    wind_col1, wind_col2 = st.columns(2)
-
-
-    with wind_col1:
-
-        if wind_gust is not None:
-
-            st.info(
-                f"💨 **Maximum Wind Gust:** "
-                f"{float(wind_gust):.1f} km/h"
+            st.code(
+                str(e)
             )
 
-
-    with wind_col2:
-
-        if wind_direction is not None:
-
-            st.info(
-                f"🧭 **Wind Direction:** "
-                f"{float(wind_direction):.0f}°"
-            )
-
-
-    # ========================================================
-    # 16 DAY FORECAST
-    # ========================================================
-
-    st.divider()
-
-    st.header(
-        "📈 16-Day Temperature Forecast"
-    )
-
-
-    try:
-
-        with st.spinner(
-            "📊 Loading 16-day forecast..."
-        ):
-
-            forecast_16 = get_16_day_forecast(
-
-                latitude,
-
-                longitude
-
-            )
-
-
-        daily = forecast_16.get(
-            "daily",
-            {}
-        )
-
-
-        dates = daily.get(
-            "time",
-            []
-        )
-
-
-        max_temps = daily.get(
-            "temperature_2m_max",
-            []
-        )
-
-
-        min_temps = daily.get(
-            "temperature_2m_min",
-            []
-        )
-
-
-        mean_temps = daily.get(
-            "temperature_2m_mean",
-            []
-        )
-
-
-        # ====================================================
-        # CHART
-        # ====================================================
-
-        fig = go.Figure()
-
-
-        fig.add_trace(
-
-            go.Scatter(
-
-                x=dates,
-
-                y=max_temps,
-
-                mode="lines+markers",
-
-                name="Maximum Temperature",
-
-                hovertemplate=
-                "%{x}<br>"
-                "Max: %{y:.1f} °C"
-                "<extra></extra>"
-
-            )
-
-        )
-
-
-        fig.add_trace(
-
-            go.Scatter(
-
-                x=dates,
-
-                y=min_temps,
-
-                mode="lines+markers",
-
-                name="Minimum Temperature",
-
-                hovertemplate=
-                "%{x}<br>"
-                "Min: %{y:.1f} °C"
-                "<extra></extra>"
-
-            )
-
-        )
-
-
-        fig.add_trace(
-
-            go.Scatter(
-
-                x=dates,
-
-                y=mean_temps,
-
-                mode="lines+markers",
-
-                name="Average Temperature",
-
-                hovertemplate=
-                "%{x}<br>"
-                "Average: %{y:.1f} °C"
-                "<extra></extra>"
-
-            )
-
-        )
-
-
-        fig.update_layout(
-
-            height=450,
-
-            xaxis_title="Date",
-
-            yaxis_title="Temperature (°C)",
-
-            hovermode="x unified",
-
-            legend=dict(
-                orientation="h",
-                yanchor="bottom",
-                y=1.02,
-                xanchor="left",
-                x=0
-            )
-
-        )
-
-
-        st.plotly_chart(
-            fig,
-            use_container_width=True
-        )
-
-
-        # ====================================================
-        # FORECAST TABLE
-        # ====================================================
-
-        st.subheader(
-            "📋 Forecast Details"
-        )
-
-
-        table_data = pd.DataFrame({
-
-            "Date": dates,
-
-            "Min °C": min_temps,
-
-            "Average °C": mean_temps,
-
-            "Max °C": max_temps
-
-        })
-
-
-        table_data["Date"] = pd.to_datetime(
-            table_data["Date"]
-        ).dt.strftime(
-            "%d %b %Y"
-        )
-
-
-        st.dataframe(
-
-            table_data,
-
-            use_container_width=True,
-
-            hide_index=True
-
-        )
-
-
-    except Exception as e:
-
-        st.warning(
-            f"⚠️ 16-day forecast could not be loaded: {e}"
-        )
-
-
-# ============================================================
-# INITIAL SCREEN
-# ============================================================
 
 else:
 
     st.info(
-        "⌨️ Start typing a Pakistani city name above."
-    )
-
-    st.markdown(
-        """
-        ### 🇵🇰 Explore Pakistan Weather
-
-        Search for cities such as:
-
-        **Multan • Lahore • Karachi • Islamabad • "
-        Peshawar • Quetta • Bahawalpur • Murree • Faisalabad**
-        """
+        "⌨️ Start typing a Pakistani city name "
+        "to see matching suggestions."
     )
 
 
@@ -1179,6 +969,9 @@ else:
 st.divider()
 
 st.caption(
-    "🇵🇰 PakWeather AI | Streamlit Frontend | "
-    "FastAPI Backend on Railway | Weather data by Open-Meteo"
+    "🇵🇰 PakWeather AI | "
+    "Streamlit Frontend | "
+    "FastAPI Backend on Railway | "
+    "Weather data by Open-Meteo"
 )
+```
