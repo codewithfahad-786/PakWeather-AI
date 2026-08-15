@@ -15,7 +15,7 @@ from datetime import date, timedelta
 app = FastAPI(
     title="PakWeather AI API",
     description="Weather search and forecast API for Pakistani cities",
-    version="1.0.0"
+    version="2.0.0"
 )
 
 
@@ -33,12 +33,24 @@ app.add_middleware(
 
 
 # ============================================================
+# OPEN-METEO
+# ============================================================
+
+OPEN_METEO_GEOCODING = (
+    "https://geocoding-api.open-meteo.com/v1/search"
+)
+
+OPEN_METEO_FORECAST = (
+    "https://api.open-meteo.com/v1/forecast"
+)
+
+
+# ============================================================
 # HOME
 # ============================================================
 
 @app.get("/")
 def home():
-
     return {
         "message": "🇵🇰 PakWeather AI Backend is running!",
         "status": "online",
@@ -47,12 +59,11 @@ def home():
 
 
 # ============================================================
-# HEALTH CHECK
+# HEALTH
 # ============================================================
 
 @app.get("/health")
 def health():
-
     return {
         "status": "healthy",
         "service": "PakWeather AI Backend"
@@ -67,24 +78,23 @@ def health():
 def search_cities(
     query: str = Query(
         ...,
-        min_length=2,
-        description="City name or partial city name"
+        min_length=1,
+        description="Pakistani city name or partial city name"
     )
 ):
 
-    url = "https://geocoding-api.open-meteo.com/v1/search"
-
     params = {
-        "name": query,
+        "name": query.strip(),
         "count": 20,
         "language": "en",
-        "format": "json"
+        "format": "json",
+        "countryCode": "PK"
     }
 
     try:
 
         response = requests.get(
-            url,
+            OPEN_METEO_GEOCODING,
             params=params,
             timeout=15
         )
@@ -100,78 +110,57 @@ def search_cities(
             detail=f"City search service unavailable: {str(e)}"
         )
 
-
     results = data.get("results", [])
 
     pakistan_cities = []
 
-
     for city in results:
 
-        country_code = city.get(
-            "country_code",
-            ""
-        )
+        if city.get("country_code", "").upper() != "PK":
+            continue
 
-        country = city.get(
-            "country",
-            ""
-        )
+        pakistan_cities.append({
 
+            "name": city.get(
+                "name",
+                "Unknown"
+            ),
 
-        # Only Pakistan
-        if (
-            country_code.upper() == "PK"
-            or country.lower() == "pakistan"
-        ):
+            "province": city.get(
+                "admin1",
+                ""
+            ),
 
-            pakistan_cities.append({
+            "country": "Pakistan",
 
-                "name": city.get(
-                    "name",
-                    "Unknown"
-                ),
+            "latitude": city.get(
+                "latitude"
+            ),
 
-                "province": city.get(
-                    "admin1",
-                    ""
-                ),
+            "longitude": city.get(
+                "longitude"
+            ),
 
-                "country": "Pakistan",
+            "elevation": city.get(
+                "elevation",
+                0
+            ),
 
-                "latitude": city.get(
-                    "latitude"
-                ),
-
-                "longitude": city.get(
-                    "longitude"
-                ),
-
-                "elevation": city.get(
-                    "elevation"
-                ),
-
-                "timezone": city.get(
-                    "timezone",
-                    "auto"
-                )
-            })
-
+            "timezone": city.get(
+                "timezone",
+                "auto"
+            )
+        })
 
     return {
-
         "query": query,
-
-        "count": len(
-            pakistan_cities
-        ),
-
+        "count": len(pakistan_cities),
         "cities": pakistan_cities
     }
 
 
 # ============================================================
-# WEATHER FORECAST
+# WEATHER FORECAST - 16 DAYS
 # ============================================================
 
 @app.get("/weather")
@@ -188,16 +177,6 @@ def weather_forecast(
     )
 ):
 
-    today = date.today()
-
-    end_date = (
-        today + timedelta(days=15)
-    )
-
-
-    url = "https://api.open-meteo.com/v1/forecast"
-
-
     params = {
 
         "latitude": latitude,
@@ -207,31 +186,18 @@ def weather_forecast(
         "daily": ",".join([
 
             "weather_code",
-
             "temperature_2m_max",
-
             "temperature_2m_min",
-
             "temperature_2m_mean",
-
             "apparent_temperature_max",
-
             "apparent_temperature_min",
-
             "precipitation_sum",
-
             "rain_sum",
-
             "precipitation_probability_max",
-
             "wind_speed_10m_max",
-
             "wind_gusts_10m_max",
-
             "wind_direction_10m_dominant",
-
             "sunrise",
-
             "sunset"
         ]),
 
@@ -246,11 +212,10 @@ def weather_forecast(
         "precipitation_unit": "mm"
     }
 
-
     try:
 
         response = requests.get(
-            url,
+            OPEN_METEO_FORECAST,
             params=params,
             timeout=20
         )
@@ -266,21 +231,10 @@ def weather_forecast(
             detail=f"Weather service unavailable: {str(e)}"
         )
 
-
     return {
-
         "location": {
-
             "latitude": latitude,
-
             "longitude": longitude
-        },
-
-        "forecast_period": {
-
-            "start": str(today),
-
-            "end": str(end_date)
         },
 
         "daily": data.get(
@@ -307,43 +261,49 @@ def forecast_for_date(
         description="City longitude"
     ),
 
-    forecast_date: date = Query(
-        ...,
-        description="Date between today and next 15 days"
+    forecast_date: date | None = Query(
+        None,
+        description="Forecast date"
+    ),
+
+    elevation: float | None = Query(
+        None,
+        description="City elevation"
     )
 ):
 
     today = date.today()
 
-    maximum_date = (
-        today + timedelta(days=15)
-    )
+    maximum_date = today + timedelta(days=15)
 
+    # --------------------------------------------------------
+    # If no date is supplied, use today's date
+    # --------------------------------------------------------
 
+    if forecast_date is None:
+        forecast_date = today
+
+    # --------------------------------------------------------
     # Date validation
+    # --------------------------------------------------------
 
     if forecast_date < today:
 
         raise HTTPException(
-
             status_code=400,
-
             detail="Past dates are not available."
         )
-
 
     if forecast_date > maximum_date:
 
         raise HTTPException(
-
             status_code=400,
-
             detail="Forecast is available for maximum 16 days."
         )
 
-
-    url = "https://api.open-meteo.com/v1/forecast"
-
+    # --------------------------------------------------------
+    # Open-Meteo request
+    # --------------------------------------------------------
 
     params = {
 
@@ -354,26 +314,19 @@ def forecast_for_date(
         "daily": ",".join([
 
             "weather_code",
-
             "temperature_2m_max",
-
             "temperature_2m_min",
-
             "temperature_2m_mean",
-
             "apparent_temperature_max",
-
             "apparent_temperature_min",
-
             "precipitation_sum",
-
             "rain_sum",
-
             "precipitation_probability_max",
-
             "wind_speed_10m_max",
-
-            "wind_gusts_10m_max"
+            "wind_gusts_10m_max",
+            "wind_direction_10m_dominant",
+            "sunrise",
+            "sunset"
         ]),
 
         "timezone": "auto",
@@ -387,11 +340,10 @@ def forecast_for_date(
         "precipitation_unit": "mm"
     }
 
-
     try:
 
         response = requests.get(
-            url,
+            OPEN_METEO_FORECAST,
             params=params,
             timeout=20
         )
@@ -403,93 +355,147 @@ def forecast_for_date(
     except requests.RequestException as e:
 
         raise HTTPException(
-
             status_code=503,
-
             detail=f"Weather service unavailable: {str(e)}"
         )
 
+    # --------------------------------------------------------
+    # Extract daily data
+    # --------------------------------------------------------
 
     daily = data.get(
         "daily",
         {}
     )
 
-
     dates = daily.get(
         "time",
         []
     )
 
-
     target = str(
         forecast_date
     )
 
-
     if target not in dates:
 
         raise HTTPException(
-
             status_code=404,
-
             detail="Forecast data not found."
         )
-
 
     index = dates.index(
         target
     )
 
+    # --------------------------------------------------------
+    # Safe value helper
+    # --------------------------------------------------------
+
+    def get_value(
+        key,
+        default=None
+    ):
+
+        values = daily.get(
+            key,
+            []
+        )
+
+        if index < len(values):
+
+            return values[index]
+
+        return default
+
+    # --------------------------------------------------------
+    # Final response
+    # --------------------------------------------------------
 
     return {
 
+        "status": "success",
+
         "date": target,
 
-        "weather_code": daily[
+        "location": {
+
+            "latitude": latitude,
+
+            "longitude": longitude,
+
+            "elevation": elevation
+        },
+
+        "weather_code": get_value(
             "weather_code"
-        ][index],
+        ),
 
         "temperature": {
 
-            "minimum": daily[
+            "minimum": get_value(
                 "temperature_2m_min"
-            ][index],
+            ),
 
-            "average": daily[
+            "average": get_value(
                 "temperature_2m_mean"
-            ][index],
+            ),
 
-            "maximum": daily[
+            "maximum": get_value(
                 "temperature_2m_max"
-            ][index]
+            )
         },
 
-        "apparent_temperature_max": daily[
-            "apparent_temperature_max"
-        ][index],
+        "apparent_temperature": {
 
-        "apparent_temperature_min": daily[
-            "apparent_temperature_min"
-        ][index],
+            "minimum": get_value(
+                "apparent_temperature_min"
+            ),
 
-        "precipitation_mm": daily[
-            "precipitation_sum"
-        ][index],
+            "maximum": get_value(
+                "apparent_temperature_max"
+            )
+        },
 
-        "rain_mm": daily[
-            "rain_sum"
-        ][index],
+        "precipitation_mm": get_value(
+            "precipitation_sum",
+            0
+        ),
 
-        "rain_probability": daily[
-            "precipitation_probability_max"
-        ][index],
+        "rain_mm": get_value(
+            "rain_sum",
+            0
+        ),
 
-        "wind_speed_kmh": daily[
-            "wind_speed_10m_max"
-        ][index],
+        "rain_probability": get_value(
+            "precipitation_probability_max",
+            0
+        ),
 
-        "wind_gust_kmh": daily[
-            "wind_gusts_10m_max"
-        ][index]
+        "wind_speed_kmh": get_value(
+            "wind_speed_10m_max",
+            0
+        ),
+
+        "wind_gust_kmh": get_value(
+            "wind_gusts_10m_max",
+            0
+        ),
+
+        "wind_direction": get_value(
+            "wind_direction_10m_dominant"
+        ),
+
+        "sunrise": get_value(
+            "sunrise"
+        ),
+
+        "sunset": get_value(
+            "sunset"
+        )
     }
+
+
+# ============================================================
+# END
+# ============================================================
