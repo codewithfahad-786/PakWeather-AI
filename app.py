@@ -1,4 +1,4 @@
-```python
+
 # ============================================================
 # 🇵🇰 PakWeather AI
 # Professional Pakistan Weather Forecast Dashboard
@@ -974,4 +974,3 @@ st.caption(
     "FastAPI Backend on Railway | "
     "Weather data by Open-Meteo"
 )
-```
