@@ -14,8 +14,8 @@ from datetime import date, timedelta
 
 app = FastAPI(
     title="PakWeather AI API",
-    description="Weather search and forecast API for Pakistani cities",
-    version="2.0.0"
+    description="Weather search, GPS location and forecast API for Pakistan",
+    version="3.0.0"
 )
 
 
@@ -33,7 +33,7 @@ app.add_middleware(
 
 
 # ============================================================
-# OPEN-METEO
+# API URLS
 # ============================================================
 
 OPEN_METEO_GEOCODING = (
@@ -44,6 +44,10 @@ OPEN_METEO_FORECAST = (
     "https://api.open-meteo.com/v1/forecast"
 )
 
+REVERSE_GEOCODING = (
+    "https://api.bigdatacloud.net/data/reverse-geocode-client"
+)
+
 
 # ============================================================
 # HOME
@@ -51,9 +55,11 @@ OPEN_METEO_FORECAST = (
 
 @app.get("/")
 def home():
+
     return {
         "message": "🇵🇰 PakWeather AI Backend is running!",
         "status": "online",
+        "version": "3.0.0",
         "docs": "/docs"
     }
 
@@ -64,6 +70,7 @@ def home():
 
 @app.get("/health")
 def health():
+
     return {
         "status": "healthy",
         "service": "PakWeather AI Backend"
@@ -153,9 +160,176 @@ def search_cities(
         })
 
     return {
+
         "query": query,
-        "count": len(pakistan_cities),
+
+        "count": len(
+            pakistan_cities
+        ),
+
         "cities": pakistan_cities
+    }
+
+
+# ============================================================
+# REVERSE GEOCODING
+# GPS COORDINATES → ACTUAL CITY
+# ============================================================
+
+@app.get("/reverse-geocode")
+def reverse_geocode(
+
+    latitude: float = Query(
+        ...,
+        ge=-90,
+        le=90,
+        description="GPS latitude"
+    ),
+
+    longitude: float = Query(
+        ...,
+        ge=-180,
+        le=180,
+        description="GPS longitude"
+    )
+):
+
+    params = {
+
+        "latitude": latitude,
+
+        "longitude": longitude,
+
+        "localityLanguage": "en"
+    }
+
+    try:
+
+        response = requests.get(
+            REVERSE_GEOCODING,
+            params=params,
+            timeout=20,
+            headers={
+                "User-Agent": "PakWeatherAI/3.0"
+            }
+        )
+
+        response.raise_for_status()
+
+        data = response.json()
+
+    except requests.RequestException as e:
+
+        raise HTTPException(
+            status_code=503,
+            detail=f"Location service unavailable: {str(e)}"
+        )
+
+    # --------------------------------------------------------
+    # COUNTRY
+    # --------------------------------------------------------
+
+    country = data.get(
+        "countryName",
+        ""
+    )
+
+    country_code = data.get(
+        "countryCode",
+        ""
+    )
+
+    # --------------------------------------------------------
+    # Make sure location is Pakistan
+    # --------------------------------------------------------
+
+    if (
+        country_code.upper() != "PK"
+        and country.lower() != "pakistan"
+    ):
+
+        raise HTTPException(
+            status_code=400,
+            detail="Current location is outside Pakistan."
+        )
+
+    # --------------------------------------------------------
+    # Find best available city/locality
+    # --------------------------------------------------------
+
+    city = (
+        data.get("city")
+        or data.get("locality")
+        or data.get("principalSubdivision")
+        or data.get("localityInfo", {})
+            .get("administrative", [{}])[0]
+            .get("name")
+        or "Unknown"
+    )
+
+    # --------------------------------------------------------
+    # Province
+    # --------------------------------------------------------
+
+    province = (
+        data.get("principalSubdivision")
+        or data.get("principalSubdivisionCode")
+        or ""
+    )
+
+    # --------------------------------------------------------
+    # District
+    # --------------------------------------------------------
+
+    district = (
+        data.get("localityInfo", {})
+        .get("administrative", [{}])
+    )
+
+    district_name = ""
+
+    if isinstance(district, list):
+
+        for item in district:
+
+            if not isinstance(item, dict):
+                continue
+
+            name = item.get(
+                "name",
+                ""
+            )
+
+            if name and name != city:
+
+                district_name = name
+
+                break
+
+    # --------------------------------------------------------
+    # Return location
+    # --------------------------------------------------------
+
+    return {
+
+        "status": "success",
+
+        "location": {
+
+            "latitude": latitude,
+
+            "longitude": longitude,
+
+            "city": city,
+
+            "district": district_name,
+
+            "province": province,
+
+            "country": "Pakistan",
+
+            "country_code": "PK"
+        }
     }
 
 
@@ -168,12 +342,12 @@ def weather_forecast(
 
     latitude: float = Query(
         ...,
-        description="City latitude"
+        description="Location latitude"
     ),
 
     longitude: float = Query(
         ...,
-        description="City longitude"
+        description="Location longitude"
     )
 ):
 
@@ -186,18 +360,31 @@ def weather_forecast(
         "daily": ",".join([
 
             "weather_code",
+
             "temperature_2m_max",
+
             "temperature_2m_min",
+
             "temperature_2m_mean",
+
             "apparent_temperature_max",
+
             "apparent_temperature_min",
+
             "precipitation_sum",
+
             "rain_sum",
+
             "precipitation_probability_max",
+
             "wind_speed_10m_max",
+
             "wind_gusts_10m_max",
+
             "wind_direction_10m_dominant",
+
             "sunrise",
+
             "sunset"
         ]),
 
@@ -232,8 +419,13 @@ def weather_forecast(
         )
 
     return {
+
+        "status": "success",
+
         "location": {
+
             "latitude": latitude,
+
             "longitude": longitude
         },
 
@@ -253,12 +445,12 @@ def forecast_for_date(
 
     latitude: float = Query(
         ...,
-        description="City latitude"
+        description="Location latitude"
     ),
 
     longitude: float = Query(
         ...,
-        description="City longitude"
+        description="Location longitude"
     ),
 
     forecast_date: date | None = Query(
@@ -268,19 +460,22 @@ def forecast_for_date(
 
     elevation: float | None = Query(
         None,
-        description="City elevation"
+        description="Location elevation"
     )
 ):
 
     today = date.today()
 
-    maximum_date = today + timedelta(days=15)
+    maximum_date = (
+        today + timedelta(days=15)
+    )
 
     # --------------------------------------------------------
-    # If no date is supplied, use today's date
+    # Default date = today
     # --------------------------------------------------------
 
     if forecast_date is None:
+
         forecast_date = today
 
     # --------------------------------------------------------
@@ -302,7 +497,7 @@ def forecast_for_date(
         )
 
     # --------------------------------------------------------
-    # Open-Meteo request
+    # Open-Meteo parameters
     # --------------------------------------------------------
 
     params = {
@@ -314,18 +509,31 @@ def forecast_for_date(
         "daily": ",".join([
 
             "weather_code",
+
             "temperature_2m_max",
+
             "temperature_2m_min",
+
             "temperature_2m_mean",
+
             "apparent_temperature_max",
+
             "apparent_temperature_min",
+
             "precipitation_sum",
+
             "rain_sum",
+
             "precipitation_probability_max",
+
             "wind_speed_10m_max",
+
             "wind_gusts_10m_max",
+
             "wind_direction_10m_dominant",
+
             "sunrise",
+
             "sunset"
         ]),
 
@@ -360,7 +568,7 @@ def forecast_for_date(
         )
 
     # --------------------------------------------------------
-    # Extract daily data
+    # Daily data
     # --------------------------------------------------------
 
     daily = data.get(
