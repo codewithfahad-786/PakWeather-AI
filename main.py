@@ -1,11 +1,13 @@
+```python
 # ============================================================
 # 🇵🇰 PakWeather AI - FastAPI Backend
-# Version 4.0.0
 # ============================================================
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+
 import requests
+
 from datetime import date, timedelta
 
 
@@ -16,8 +18,8 @@ from datetime import date, timedelta
 app = FastAPI(
     title="PakWeather AI API",
     description=(
-        "Weather search, GPS location, reverse geocoding, "
-        "16-day forecast and 24-hour hourly forecast API"
+        "Weather search, GPS location, "
+        "24-hour and 16-day forecast API for Pakistan"
     ),
     version="4.0.0"
 )
@@ -54,10 +56,10 @@ REVERSE_GEOCODING = (
 
 
 # ============================================================
-# COMMON WEATHER PARAMETERS
+# COMMON DAILY VARIABLES
 # ============================================================
 
-DAILY_PARAMETERS = ",".join([
+DAILY_VARIABLES = [
     "weather_code",
     "temperature_2m_max",
     "temperature_2m_min",
@@ -72,20 +74,26 @@ DAILY_PARAMETERS = ",".join([
     "wind_direction_10m_dominant",
     "sunrise",
     "sunset"
-])
+]
 
 
-HOURLY_PARAMETERS = ",".join([
+# ============================================================
+# HOURLY VARIABLES
+# ============================================================
+
+HOURLY_VARIABLES = [
     "temperature_2m",
     "apparent_temperature",
-    "precipitation_probability",
+    "relative_humidity_2m",
     "precipitation",
     "rain",
+    "precipitation_probability",
     "weather_code",
+    "cloud_cover",
     "wind_speed_10m",
     "wind_gusts_10m",
     "wind_direction_10m"
-])
+]
 
 
 # ============================================================
@@ -100,11 +108,11 @@ def home():
         "status": "online",
         "version": "4.0.0",
         "features": [
-            "Pakistan city search",
-            "GPS reverse geocoding",
-            "Current weather",
-            "24-hour hourly forecast",
-            "16-day forecast"
+            "City Search",
+            "GPS Reverse Geocoding",
+            "Current Weather",
+            "24 Hour Forecast",
+            "16 Day Forecast"
         ],
         "docs": "/docs"
     }
@@ -272,10 +280,6 @@ def reverse_geocode(
             detail=f"Location service unavailable: {str(e)}"
         )
 
-    # --------------------------------------------------------
-    # COUNTRY
-    # --------------------------------------------------------
-
     country = data.get(
         "countryName",
         ""
@@ -285,10 +289,6 @@ def reverse_geocode(
         "countryCode",
         ""
     )
-
-    # --------------------------------------------------------
-    # PAKISTAN CHECK
-    # --------------------------------------------------------
 
     if (
         country_code.upper() != "PK"
@@ -300,10 +300,6 @@ def reverse_geocode(
             detail="Current location is outside Pakistan."
         )
 
-    # --------------------------------------------------------
-    # CITY
-    # --------------------------------------------------------
-
     city = (
         data.get("city")
         or data.get("locality")
@@ -311,19 +307,11 @@ def reverse_geocode(
         or "Unknown"
     )
 
-    # --------------------------------------------------------
-    # PROVINCE
-    # --------------------------------------------------------
-
     province = (
         data.get("principalSubdivision")
         or data.get("principalSubdivisionCode")
         or ""
     )
-
-    # --------------------------------------------------------
-    # DISTRICT
-    # --------------------------------------------------------
 
     district_name = ""
 
@@ -337,11 +325,17 @@ def reverse_geocode(
         []
     )
 
-    if isinstance(administrative, list):
+    if isinstance(
+        administrative,
+        list
+    ):
 
         for item in administrative:
 
-            if not isinstance(item, dict):
+            if not isinstance(
+                item,
+                dict
+            ):
                 continue
 
             name = item.get(
@@ -349,14 +343,15 @@ def reverse_geocode(
                 ""
             )
 
-            if name and name != city:
+            if (
+                name
+                and name != city
+                and name != province
+            ):
 
                 district_name = name
-                break
 
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
+                break
 
     return {
 
@@ -382,7 +377,7 @@ def reverse_geocode(
 
 
 # ============================================================
-# 16-DAY WEATHER FORECAST
+# 16-DAY WEATHER
 # ============================================================
 
 @app.get("/weather")
@@ -405,7 +400,9 @@ def weather_forecast(
 
         "longitude": longitude,
 
-        "daily": DAILY_PARAMETERS,
+        "daily": ",".join(
+            DAILY_VARIABLES
+        ),
 
         "timezone": "auto",
 
@@ -448,6 +445,10 @@ def weather_forecast(
             "longitude": longitude
         },
 
+        "timezone": data.get(
+            "timezone"
+        ),
+
         "daily": data.get(
             "daily",
             {}
@@ -456,7 +457,7 @@ def weather_forecast(
 
 
 # ============================================================
-# 24-HOUR / HOURLY WEATHER FORECAST
+# 24-HOUR FORECAST
 # ============================================================
 
 @app.get("/hourly")
@@ -464,15 +465,11 @@ def hourly_forecast(
 
     latitude: float = Query(
         ...,
-        ge=-90,
-        le=90,
         description="Location latitude"
     ),
 
     longitude: float = Query(
         ...,
-        ge=-180,
-        le=180,
         description="Location longitude"
     )
 ):
@@ -483,7 +480,9 @@ def hourly_forecast(
 
         "longitude": longitude,
 
-        "hourly": HOURLY_PARAMETERS,
+        "hourly": ",".join(
+            HOURLY_VARIABLES
+        ),
 
         "timezone": "auto",
 
@@ -525,148 +524,46 @@ def hourly_forecast(
         []
     )
 
-    temperatures = hourly.get(
-        "temperature_2m",
-        []
-    )
-
-    apparent_temperatures = hourly.get(
-        "apparent_temperature",
-        []
-    )
-
-    rain_probabilities = hourly.get(
-        "precipitation_probability",
-        []
-    )
-
-    precipitations = hourly.get(
-        "precipitation",
-        []
-    )
-
-    rains = hourly.get(
-        "rain",
-        []
-    )
-
-    weather_codes = hourly.get(
-        "weather_code",
-        []
-    )
-
-    wind_speeds = hourly.get(
-        "wind_speed_10m",
-        []
-    )
-
-    wind_gusts = hourly.get(
-        "wind_gusts_10m",
-        []
-    )
-
-    wind_directions = hourly.get(
-        "wind_direction_10m",
-        []
-    )
-
     # --------------------------------------------------------
-    # Build hourly records
+    # Return the current hour + next 23 hours
     # --------------------------------------------------------
 
-    records = []
+    if len(times) > 0:
 
-    for i in range(len(times)):
-
-        records.append({
-
-            "time": times[i],
-
-            "temperature": (
-                temperatures[i]
-                if i < len(temperatures)
-                else None
-            ),
-
-            "feels_like": (
-                apparent_temperatures[i]
-                if i < len(apparent_temperatures)
-                else None
-            ),
-
-            "rain_probability": (
-                rain_probabilities[i]
-                if i < len(rain_probabilities)
-                else 0
-            ),
-
-            "precipitation_mm": (
-                precipitations[i]
-                if i < len(precipitations)
-                else 0
-            ),
-
-            "rain_mm": (
-                rains[i]
-                if i < len(rains)
-                else 0
-            ),
-
-            "weather_code": (
-                weather_codes[i]
-                if i < len(weather_codes)
-                else None
-            ),
-
-            "wind_speed_kmh": (
-                wind_speeds[i]
-                if i < len(wind_speeds)
-                else 0
-            ),
-
-            "wind_gust_kmh": (
-                wind_gusts[i]
-                if i < len(wind_gusts)
-                else 0
-            ),
-
-            "wind_direction": (
-                wind_directions[i]
-                if i < len(wind_directions)
-                else None
+        selected_indexes = list(
+            range(
+                min(
+                    24,
+                    len(times)
+                )
             )
-        })
-
-    # --------------------------------------------------------
-    # Current local date
-    # --------------------------------------------------------
-
-    today_string = date.today().isoformat()
-
-    today_records = [
-        item
-        for item in records
-        if item["time"].startswith(
-            today_string
         )
-    ]
 
-    # --------------------------------------------------------
-    # If timezone/date mismatch occurs,
-    # return first 24 records
-    # --------------------------------------------------------
+        result = {}
 
-    if len(today_records) == 0:
+        for key, values in hourly.items():
 
-        today_records = records[:24]
+            if isinstance(
+                values,
+                list
+            ):
+
+                result[key] = [
+
+                    values[i]
+
+                    for i in selected_indexes
+
+                    if i < len(values)
+                ]
+
+            else:
+
+                result[key] = values
 
     else:
 
-        today_records = today_records[:24]
-
-    # --------------------------------------------------------
-    # Response
-    # --------------------------------------------------------
+        result = hourly
 
     return {
 
@@ -679,11 +576,13 @@ def hourly_forecast(
             "longitude": longitude
         },
 
-        "date": today_string,
+        "timezone": data.get(
+            "timezone"
+        ),
 
-        "count": len(today_records),
+        "forecast_hours": 24,
 
-        "hourly": today_records
+        "hourly": result
     }
 
 
@@ -718,20 +617,14 @@ def forecast_for_date(
     today = date.today()
 
     maximum_date = (
-        today + timedelta(days=15)
+        today + timedelta(
+            days=15
+        )
     )
-
-    # --------------------------------------------------------
-    # DEFAULT DATE
-    # --------------------------------------------------------
 
     if forecast_date is None:
 
         forecast_date = today
-
-    # --------------------------------------------------------
-    # VALIDATION
-    # --------------------------------------------------------
 
     if forecast_date < today:
 
@@ -744,12 +637,11 @@ def forecast_for_date(
 
         raise HTTPException(
             status_code=400,
-            detail="Forecast is available for maximum 16 days."
+            detail=(
+                "Forecast is available "
+                "for maximum 16 days."
+            )
         )
-
-    # --------------------------------------------------------
-    # OPEN-METEO
-    # --------------------------------------------------------
 
     params = {
 
@@ -757,7 +649,9 @@ def forecast_for_date(
 
         "longitude": longitude,
 
-        "daily": DAILY_PARAMETERS,
+        "daily": ",".join(
+            DAILY_VARIABLES
+        ),
 
         "timezone": "auto",
 
@@ -789,10 +683,6 @@ def forecast_for_date(
             detail=f"Weather service unavailable: {str(e)}"
         )
 
-    # --------------------------------------------------------
-    # DAILY DATA
-    # --------------------------------------------------------
-
     daily = data.get(
         "daily",
         {}
@@ -818,10 +708,6 @@ def forecast_for_date(
         target
     )
 
-    # --------------------------------------------------------
-    # SAFE VALUE
-    # --------------------------------------------------------
-
     def get_value(
         key,
         default=None
@@ -832,15 +718,13 @@ def forecast_for_date(
             []
         )
 
-        if index < len(values):
+        if index < len(
+            values
+        ):
 
             return values[index]
 
         return default
-
-    # --------------------------------------------------------
-    # RESPONSE
-    # --------------------------------------------------------
 
     return {
 
@@ -929,3 +813,4 @@ def forecast_for_date(
 # ============================================================
 # END
 # ============================================================
+```
