@@ -1,23 +1,11 @@
 # ============================================================
 # 🇵🇰 PakWeather AI - FastAPI Backend
-# Version 5.0
-# Features:
-#   ✅ Pakistani city search
-#   ✅ GPS reverse geocoding
-#   ✅ Current weather
-#   ✅ 24-hour hourly forecast
-#   ✅ 16-day daily forecast
-#   ✅ Sunrise / Sunset
-#   ✅ Rain probability
-#   ✅ Wind information
-#   ✅ Feels-like temperature
+# Version 4.0.0
 # ============================================================
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-
 import requests
-
 from datetime import date, timedelta
 
 
@@ -28,10 +16,10 @@ from datetime import date, timedelta
 app = FastAPI(
     title="PakWeather AI API",
     description=(
-        "Pakistan weather API with city search, GPS location, "
-        "current weather, 24-hour forecast and 16-day forecast."
+        "Weather search, GPS location, reverse geocoding, "
+        "16-day forecast and 24-hour hourly forecast API"
     ),
-    version="5.0.0"
+    version="4.0.0"
 )
 
 
@@ -49,7 +37,7 @@ app.add_middleware(
 
 
 # ============================================================
-# EXTERNAL APIs
+# API URLS
 # ============================================================
 
 OPEN_METEO_GEOCODING = (
@@ -69,7 +57,7 @@ REVERSE_GEOCODING = (
 # COMMON WEATHER PARAMETERS
 # ============================================================
 
-DAILY_VARIABLES = ",".join([
+DAILY_PARAMETERS = ",".join([
     "weather_code",
     "temperature_2m_max",
     "temperature_2m_min",
@@ -87,15 +75,13 @@ DAILY_VARIABLES = ",".join([
 ])
 
 
-HOURLY_VARIABLES = ",".join([
+HOURLY_PARAMETERS = ",".join([
     "temperature_2m",
     "apparent_temperature",
-    "relative_humidity_2m",
     "precipitation_probability",
     "precipitation",
     "rain",
     "weather_code",
-    "cloud_cover",
     "wind_speed_10m",
     "wind_gusts_10m",
     "wind_direction_10m"
@@ -112,16 +98,13 @@ def home():
     return {
         "message": "🇵🇰 PakWeather AI Backend is running!",
         "status": "online",
-        "version": "5.0.0",
+        "version": "4.0.0",
         "features": [
-            "Pakistani city search",
+            "Pakistan city search",
             "GPS reverse geocoding",
             "Current weather",
-            "24-hour forecast",
-            "16-day forecast",
-            "Rain probability",
-            "Wind information",
-            "Sunrise and sunset"
+            "24-hour hourly forecast",
+            "16-day forecast"
         ],
         "docs": "/docs"
     }
@@ -137,7 +120,7 @@ def health():
     return {
         "status": "healthy",
         "service": "PakWeather AI Backend",
-        "version": "5.0.0"
+        "version": "4.0.0"
     }
 
 
@@ -236,8 +219,8 @@ def search_cities(
 
 
 # ============================================================
-# GPS REVERSE GEOCODING
-# GPS COORDINATES → CITY
+# REVERSE GEOCODING
+# GPS COORDINATES → CITY / DISTRICT / PROVINCE
 # ============================================================
 
 @app.get("/reverse-geocode")
@@ -246,13 +229,15 @@ def reverse_geocode(
     latitude: float = Query(
         ...,
         ge=-90,
-        le=90
+        le=90,
+        description="GPS latitude"
     ),
 
     longitude: float = Query(
         ...,
         ge=-180,
-        le=180
+        le=180,
+        description="GPS longitude"
     )
 ):
 
@@ -272,7 +257,7 @@ def reverse_geocode(
             params=params,
             timeout=20,
             headers={
-                "User-Agent": "PakWeatherAI/5.0"
+                "User-Agent": "PakWeatherAI/4.0"
             }
         )
 
@@ -287,6 +272,10 @@ def reverse_geocode(
             detail=f"Location service unavailable: {str(e)}"
         )
 
+    # --------------------------------------------------------
+    # COUNTRY
+    # --------------------------------------------------------
+
     country = data.get(
         "countryName",
         ""
@@ -296,6 +285,10 @@ def reverse_geocode(
         "countryCode",
         ""
     )
+
+    # --------------------------------------------------------
+    # PAKISTAN CHECK
+    # --------------------------------------------------------
 
     if (
         country_code.upper() != "PK"
@@ -307,6 +300,10 @@ def reverse_geocode(
             detail="Current location is outside Pakistan."
         )
 
+    # --------------------------------------------------------
+    # CITY
+    # --------------------------------------------------------
+
     city = (
         data.get("city")
         or data.get("locality")
@@ -314,10 +311,52 @@ def reverse_geocode(
         or "Unknown"
     )
 
+    # --------------------------------------------------------
+    # PROVINCE
+    # --------------------------------------------------------
+
     province = (
         data.get("principalSubdivision")
+        or data.get("principalSubdivisionCode")
         or ""
     )
+
+    # --------------------------------------------------------
+    # DISTRICT
+    # --------------------------------------------------------
+
+    district_name = ""
+
+    locality_info = data.get(
+        "localityInfo",
+        {}
+    )
+
+    administrative = locality_info.get(
+        "administrative",
+        []
+    )
+
+    if isinstance(administrative, list):
+
+        for item in administrative:
+
+            if not isinstance(item, dict):
+                continue
+
+            name = item.get(
+                "name",
+                ""
+            )
+
+            if name and name != city:
+
+                district_name = name
+                break
+
+    # --------------------------------------------------------
+    # RESPONSE
+    # --------------------------------------------------------
 
     return {
 
@@ -331,6 +370,8 @@ def reverse_geocode(
 
             "city": city,
 
+            "district": district_name,
+
             "province": province,
 
             "country": "Pakistan",
@@ -341,20 +382,20 @@ def reverse_geocode(
 
 
 # ============================================================
-# CURRENT WEATHER
+# 16-DAY WEATHER FORECAST
 # ============================================================
 
-@app.get("/current")
-def current_weather(
+@app.get("/weather")
+def weather_forecast(
 
     latitude: float = Query(
         ...,
-        description="Latitude"
+        description="Location latitude"
     ),
 
     longitude: float = Query(
         ...,
-        description="Longitude"
+        description="Location longitude"
     )
 ):
 
@@ -364,22 +405,11 @@ def current_weather(
 
         "longitude": longitude,
 
-        "current": ",".join([
-            "temperature_2m",
-            "relative_humidity_2m",
-            "apparent_temperature",
-            "is_day",
-            "precipitation",
-            "rain",
-            "weather_code",
-            "cloud_cover",
-            "pressure_msl",
-            "wind_speed_10m",
-            "wind_gusts_10m",
-            "wind_direction_10m"
-        ]),
+        "daily": DAILY_PARAMETERS,
 
         "timezone": "auto",
+
+        "forecast_days": 16,
 
         "temperature_unit": "celsius",
 
@@ -404,7 +434,7 @@ def current_weather(
 
         raise HTTPException(
             status_code=503,
-            detail=f"Current weather service unavailable: {str(e)}"
+            detail=f"Weather service unavailable: {str(e)}"
         )
 
     return {
@@ -418,28 +448,32 @@ def current_weather(
             "longitude": longitude
         },
 
-        "current": data.get(
-            "current",
+        "daily": data.get(
+            "daily",
             {}
         )
     }
 
 
 # ============================================================
-# 24-HOUR WEATHER
+# 24-HOUR / HOURLY WEATHER FORECAST
 # ============================================================
 
 @app.get("/hourly")
-def hourly_weather(
+def hourly_forecast(
 
     latitude: float = Query(
         ...,
-        description="Latitude"
+        ge=-90,
+        le=90,
+        description="Location latitude"
     ),
 
     longitude: float = Query(
         ...,
-        description="Longitude"
+        ge=-180,
+        le=180,
+        description="Location longitude"
     )
 ):
 
@@ -449,11 +483,11 @@ def hourly_weather(
 
         "longitude": longitude,
 
-        "hourly": HOURLY_VARIABLES,
-
-        "forecast_hours": 24,
+        "hourly": HOURLY_PARAMETERS,
 
         "timezone": "auto",
+
+        "forecast_days": 2,
 
         "temperature_unit": "celsius",
 
@@ -481,181 +515,158 @@ def hourly_weather(
             detail=f"Hourly weather service unavailable: {str(e)}"
         )
 
-    return {
-
-        "status": "success",
-
-        "location": {
-
-            "latitude": latitude,
-
-            "longitude": longitude
-        },
-
-        "timezone": data.get(
-            "timezone"
-        ),
-
-        "hourly": data.get(
-            "hourly",
-            {}
-        )
-    }
-
-
-# ============================================================
-# 16-DAY WEATHER
-# ============================================================
-
-@app.get("/weather")
-def weather_forecast(
-
-    latitude: float = Query(
-        ...,
-        description="Location latitude"
-    ),
-
-    longitude: float = Query(
-        ...,
-        description="Location longitude"
+    hourly = data.get(
+        "hourly",
+        {}
     )
-):
 
-    params = {
-
-        "latitude": latitude,
-
-        "longitude": longitude,
-
-        "daily": DAILY_VARIABLES,
-
-        "timezone": "auto",
-
-        "forecast_days": 16,
-
-        "temperature_unit": "celsius",
-
-        "wind_speed_unit": "kmh",
-
-        "precipitation_unit": "mm"
-    }
-
-    try:
-
-        response = requests.get(
-            OPEN_METEO_FORECAST,
-            params=params,
-            timeout=20
-        )
-
-        response.raise_for_status()
-
-        data = response.json()
-
-    except requests.RequestException as e:
-
-        raise HTTPException(
-            status_code=503,
-            detail=f"Weather service unavailable: {str(e)}"
-        )
-
-    return {
-
-        "status": "success",
-
-        "location": {
-
-            "latitude": latitude,
-
-            "longitude": longitude
-        },
-
-        "timezone": data.get(
-            "timezone"
-        ),
-
-        "daily": data.get(
-            "daily",
-            {}
-        )
-    }
-
-
-# ============================================================
-# COMPLETE WEATHER
-# CURRENT + 24 HOURS + 16 DAYS
-# ============================================================
-
-@app.get("/complete-weather")
-def complete_weather(
-
-    latitude: float = Query(
-        ...,
-        description="Location latitude"
-    ),
-
-    longitude: float = Query(
-        ...,
-        description="Location longitude"
+    times = hourly.get(
+        "time",
+        []
     )
-):
 
-    params = {
+    temperatures = hourly.get(
+        "temperature_2m",
+        []
+    )
 
-        "latitude": latitude,
+    apparent_temperatures = hourly.get(
+        "apparent_temperature",
+        []
+    )
 
-        "longitude": longitude,
+    rain_probabilities = hourly.get(
+        "precipitation_probability",
+        []
+    )
 
-        "current": ",".join([
-            "temperature_2m",
-            "relative_humidity_2m",
-            "apparent_temperature",
-            "is_day",
-            "precipitation",
-            "rain",
-            "weather_code",
-            "cloud_cover",
-            "pressure_msl",
-            "wind_speed_10m",
-            "wind_gusts_10m",
-            "wind_direction_10m"
-        ]),
+    precipitations = hourly.get(
+        "precipitation",
+        []
+    )
 
-        "hourly": HOURLY_VARIABLES,
+    rains = hourly.get(
+        "rain",
+        []
+    )
 
-        "daily": DAILY_VARIABLES,
+    weather_codes = hourly.get(
+        "weather_code",
+        []
+    )
 
-        "forecast_hours": 24,
+    wind_speeds = hourly.get(
+        "wind_speed_10m",
+        []
+    )
 
-        "forecast_days": 16,
+    wind_gusts = hourly.get(
+        "wind_gusts_10m",
+        []
+    )
 
-        "timezone": "auto",
+    wind_directions = hourly.get(
+        "wind_direction_10m",
+        []
+    )
 
-        "temperature_unit": "celsius",
+    # --------------------------------------------------------
+    # Build hourly records
+    # --------------------------------------------------------
 
-        "wind_speed_unit": "kmh",
+    records = []
 
-        "precipitation_unit": "mm"
-    }
+    for i in range(len(times)):
 
-    try:
+        records.append({
 
-        response = requests.get(
-            OPEN_METEO_FORECAST,
-            params=params,
-            timeout=25
+            "time": times[i],
+
+            "temperature": (
+                temperatures[i]
+                if i < len(temperatures)
+                else None
+            ),
+
+            "feels_like": (
+                apparent_temperatures[i]
+                if i < len(apparent_temperatures)
+                else None
+            ),
+
+            "rain_probability": (
+                rain_probabilities[i]
+                if i < len(rain_probabilities)
+                else 0
+            ),
+
+            "precipitation_mm": (
+                precipitations[i]
+                if i < len(precipitations)
+                else 0
+            ),
+
+            "rain_mm": (
+                rains[i]
+                if i < len(rains)
+                else 0
+            ),
+
+            "weather_code": (
+                weather_codes[i]
+                if i < len(weather_codes)
+                else None
+            ),
+
+            "wind_speed_kmh": (
+                wind_speeds[i]
+                if i < len(wind_speeds)
+                else 0
+            ),
+
+            "wind_gust_kmh": (
+                wind_gusts[i]
+                if i < len(wind_gusts)
+                else 0
+            ),
+
+            "wind_direction": (
+                wind_directions[i]
+                if i < len(wind_directions)
+                else None
+            )
+        })
+
+    # --------------------------------------------------------
+    # Current local date
+    # --------------------------------------------------------
+
+    today_string = date.today().isoformat()
+
+    today_records = [
+        item
+        for item in records
+        if item["time"].startswith(
+            today_string
         )
+    ]
 
-        response.raise_for_status()
+    # --------------------------------------------------------
+    # If timezone/date mismatch occurs,
+    # return first 24 records
+    # --------------------------------------------------------
 
-        data = response.json()
+    if len(today_records) == 0:
 
-    except requests.RequestException as e:
+        today_records = records[:24]
 
-        raise HTTPException(
-            status_code=503,
-            detail=f"Weather service unavailable: {str(e)}"
-        )
+    else:
+
+        today_records = today_records[:24]
+
+    # --------------------------------------------------------
+    # Response
+    # --------------------------------------------------------
 
     return {
 
@@ -668,24 +679,11 @@ def complete_weather(
             "longitude": longitude
         },
 
-        "timezone": data.get(
-            "timezone"
-        ),
+        "date": today_string,
 
-        "current": data.get(
-            "current",
-            {}
-        ),
+        "count": len(today_records),
 
-        "hourly": data.get(
-            "hourly",
-            {}
-        ),
-
-        "daily": data.get(
-            "daily",
-            {}
-        )
+        "hourly": today_records
     }
 
 
@@ -723,9 +721,17 @@ def forecast_for_date(
         today + timedelta(days=15)
     )
 
+    # --------------------------------------------------------
+    # DEFAULT DATE
+    # --------------------------------------------------------
+
     if forecast_date is None:
 
         forecast_date = today
+
+    # --------------------------------------------------------
+    # VALIDATION
+    # --------------------------------------------------------
 
     if forecast_date < today:
 
@@ -741,13 +747,17 @@ def forecast_for_date(
             detail="Forecast is available for maximum 16 days."
         )
 
+    # --------------------------------------------------------
+    # OPEN-METEO
+    # --------------------------------------------------------
+
     params = {
 
         "latitude": latitude,
 
         "longitude": longitude,
 
-        "daily": DAILY_VARIABLES,
+        "daily": DAILY_PARAMETERS,
 
         "timezone": "auto",
 
@@ -779,6 +789,10 @@ def forecast_for_date(
             detail=f"Weather service unavailable: {str(e)}"
         )
 
+    # --------------------------------------------------------
+    # DAILY DATA
+    # --------------------------------------------------------
+
     daily = data.get(
         "daily",
         {}
@@ -804,6 +818,10 @@ def forecast_for_date(
         target
     )
 
+    # --------------------------------------------------------
+    # SAFE VALUE
+    # --------------------------------------------------------
+
     def get_value(
         key,
         default=None
@@ -819,6 +837,10 @@ def forecast_for_date(
             return values[index]
 
         return default
+
+    # --------------------------------------------------------
+    # RESPONSE
+    # --------------------------------------------------------
 
     return {
 
