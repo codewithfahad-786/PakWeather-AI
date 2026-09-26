@@ -2,6 +2,7 @@ from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 import requests
 import json
+import os
 
 app = FastAPI()
 
@@ -12,9 +13,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Cities data load karo
-with open("pak_cities.json", "r", encoding="utf-8") as f:
-    PAK_CITIES = json.load(f)
+# Cities data load karo - FIXED PATH FOR STREAMLIT CLOUD
+CITIES_FILE = os.path.join(os.path.dirname(__file__), "pak_cities.json")
+
+try:
+    with open(CITIES_FILE, "r", encoding="utf-8") as f:
+        PAK_CITIES = json.load(f)
+except FileNotFoundError:
+    # Backup agar file na mile
+    PAK_CITIES = [
+        {"name": "Karachi", "province": "Sindh", "country": "Pakistan", "lat": 24.8607, "lon": 67.0011},
+        {"name": "Lahore", "province": "Punjab", "country": "Pakistan", "lat": 31.5497, "lon": 74.3436},
+        {"name": "Islamabad", "province": "Islamabad", "country": "Pakistan", "lat": 33.6844, "lon": 73.0479},
+        {"name": "Mirpur Khas", "province": "Sindh", "country": "Pakistan", "lat": 25.5251, "lon": 69.0159},
+    ]
 
 @app.get("/")
 def root():
@@ -76,7 +88,7 @@ def get_hourly(latitude: float, longitude: float):
 
 @app.get("/weather")
 def get_16_day(latitude: float, longitude: float):
-    url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&daily=weathercode,temperature_2m_max,temperature_2m_min,temperature_2m_mean,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,precipitation_probability_max,windspeed_10m_max,windgusts_10m_max,winddirection_10m_dominant,sunrise,sunset&timezone=auto&forecast_days=16"
+    url = f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current_weather=true&daily=weathercode,temperature_2m_max,temperature_2m_min,temperature_2m_mean,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,precipitation_probability_max,windspeed_10m_max,windgusts_10m_max,winddirection_10m_dominant,sunrise,sunset&timezone=auto&forecast_days=16"
     r = requests.get(url)
     data = r.json()
-    return {"status": "success", "location": {"latitude": latitude, "longitude": longitude}, "daily": data.get("daily", {})}
+    return {"status": "success", "location": {"latitude": latitude, "longitude": longitude}, "current_weather": data.get("current_weather", {}), "daily": data.get("daily", {})}
