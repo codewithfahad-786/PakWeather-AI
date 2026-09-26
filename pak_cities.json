@@ -1,0 +1,21 @@
+import os
+import json
+
+# File path fix for Streamlit Cloud
+CITIES_FILE = os.path.join(os.path.dirname(__file__), "pak_cities.json")
+
+try:
+    with open(CITIES_FILE, "r", encoding="utf-8") as f:
+        PAK_CITIES = json.load(f)
+except FileNotFoundError:
+    # Agar file na mile to backup list use karo
+    PAK_CITIES = [
+        {"name": "Karachi", "province": "Sindh", "lat": 24.8607, "lon": 67.0011},
+        {"name": "Lahore", "province": "Punjab", "lat": 31.5497, "lon": 74.3436},
+        {"name": "Islamabad", "province": "Islamabad", "lat": 33.6844, "lon": 73.0479},
+        {"name": "Mirpur Khas", "province": "Sindh", "lat": 25.5251, "lon": 69.0159},
+        {"name": "Multan", "province": "Punjab", "lat": 30.1575, "lon": 71.5249},
+        {"name": "Hyderabad", "province": "Sindh", "lat": 25.3960, "lon": 68.3578},
+        {"name": "Peshawar", "province": "KPK", "lat": 34.0151, "lon": 71.5249},
+        {"name": "Quetta", "province": "Balochistan", "lat": 30.1798, "lon": 66.9750},
+    ]
