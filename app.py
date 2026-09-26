@@ -119,4 +119,3 @@ if search_query:
                         st.write(f"🌧️ {daily['rain_sum'][i]}mm ({daily['precipitation_probability_max'][i]}%)")
                         st.write(f"💨 {daily['windspeed_10m_max'][i]} km/h")
 
-st.sidebar.success("Android App direct API use karti hai, Web App bhi same API use karti hai. Dono alag alag chalengi.")
