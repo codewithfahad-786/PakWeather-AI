@@ -1,21 +1,17 @@
-import os
-import json
-
-# File path fix for Streamlit Cloud
-CITIES_FILE = os.path.join(os.path.dirname(__file__), "pak_cities.json")
-
-try:
-    with open(CITIES_FILE, "r", encoding="utf-8") as f:
-        PAK_CITIES = json.load(f)
-except FileNotFoundError:
-    # Agar file na mile to backup list use karo
-    PAK_CITIES = [
-        {"name": "Karachi", "province": "Sindh", "lat": 24.8607, "lon": 67.0011},
-        {"name": "Lahore", "province": "Punjab", "lat": 31.5497, "lon": 74.3436},
-        {"name": "Islamabad", "province": "Islamabad", "lat": 33.6844, "lon": 73.0479},
-        {"name": "Mirpur Khas", "province": "Sindh", "lat": 25.5251, "lon": 69.0159},
-        {"name": "Multan", "province": "Punjab", "lat": 30.1575, "lon": 71.5249},
-        {"name": "Hyderabad", "province": "Sindh", "lat": 25.3960, "lon": 68.3578},
-        {"name": "Peshawar", "province": "KPK", "lat": 34.0151, "lon": 71.5249},
-        {"name": "Quetta", "province": "Balochistan", "lat": 30.1798, "lon": 66.9750},
-    ]
+[
+  {"name": "Karachi", "province": "Sindh", "country": "Pakistan", "lat": 24.8607, "lon": 67.0011},
+  {"name": "Lahore", "province": "Punjab", "country": "Pakistan", "lat": 31.5497, "lon": 74.3436},
+  {"name": "Islamabad", "province": "Islamabad", "country": "Pakistan", "lat": 33.6844, "lon": 73.0479},
+  {"name": "Multan", "province": "Punjab", "country": "Pakistan", "lat": 30.1575, "lon": 71.5249},
+  {"name": "Mirpur Khas", "province": "Sindh", "country": "Pakistan", "lat": 25.5251, "lon": 69.0159},
+  {"name": "Hyderabad", "province": "Sindh", "country": "Pakistan", "lat": 25.3960, "lon": 68.3578},
+  {"name": "Faisalabad", "province": "Punjab", "country": "Pakistan", "lat": 31.4504, "lon": 73.1350},
+  {"name": "Rawalpindi", "province": "Punjab", "country": "Pakistan", "lat": 33.6007, "lon": 73.0679},
+  {"name": "Peshawar", "province": "KPK", "country": "Pakistan", "lat": 34.0151, "lon": 71.5249},
+  {"name": "Quetta", "province": "Balochistan", "country": "Pakistan", "lat": 30.1798, "lon": 66.9750},
+  {"name": "Sialkot", "province": "Punjab", "country": "Pakistan", "lat": 32.4945, "lon": 74.5229},
+  {"name": "Sukkur", "province": "Sindh", "country": "Pakistan", "lat": 27.7052, "lon": 68.8574},
+  {"name": "Bahawalpur", "province": "Punjab", "country": "Pakistan", "lat": 29.3956, "lon": 71.6722},
+  {"name": "Larkana", "province": "Sindh", "country": "Pakistan", "lat": 27.5589, "lon": 68.2120},
+  {"name": "Gwadar", "province": "Balochistan", "country": "Pakistan", "lat": 25.1216, "lon": 62.3254}
+]
